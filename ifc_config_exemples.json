@@ -1,0 +1,94 @@
+{
+  "IFCWALL": {
+    "types": [
+      {"name": "Veneered Walls", "price": 150.00},
+      {"name": "Painted Walls", "price": 120.00},
+      {"name": "Plastered Walls", "price": 130.00},
+      {"name": "Concrete Walls", "price": 140.00},
+      {"name": "Brick Walls", "price": 160.00},
+      {"name": "Wooden Walls", "price": 170.00}
+    ]
+  },
+  "IFCDOOR": {
+    "types": [
+      {"name": "Wooden Doors", "price": 250.50},
+      {"name": "Metal Doors", "price": 300.00},
+      {"name": "Glass Doors", "price": 350.00},
+      {"name": "Fire Doors", "price": 400.00},
+      {"name": "Sliding Doors", "price": 450.00},
+      {"name": "Bi-fold Doors", "price": 500.00}
+    ]
+  },
+  "IFCWINDOW": {
+    "types": [
+      {"name": "Glass Windows", "price": 180.75},
+      {"name": "Wooden Windows", "price": 200.00},
+      {"name": "Aluminum Windows", "price": 220.00},
+      {"name": "Vinyl Windows", "price": 240.00},
+      {"name": "Fiberglass Windows", "price": 260.00}
+    ]
+  },
+  "IFCSLAB": {
+    "types": [
+      {"name": "Concrete Slabs", "price": 300.00},
+      {"name": "Wooden Slabs", "price": 350.00},
+      {"name": "Steel Slabs", "price": 400.00},
+      {"name": "Composite Slabs", "price": 450.00},
+      {"name": "Precast Slabs", "price": 500.00}
+    ]
+  },
+  "IFCCOLUMN": {
+    "types": [
+      {"name": "Concrete Columns", "price": 200.00},
+      {"name": "Steel Columns", "price": 250.00},
+      {"name": "Wooden Columns", "price": 300.00},
+      {"name": "Composite Columns", "price": 350.00},
+      {"name": "Precast Columns", "price": 400.00}
+    ]
+  },
+  "IFCBEAM": {
+    "types": [
+      {"name": "Concrete Beams", "price": 220.00},
+      {"name": "Steel Beams", "price": 270.00},
+      {"name": "Wooden Beams", "price": 320.00},
+      {"name": "Composite Beams", "price": 370.00},
+      {"name": "Precast Beams", "price": 420.00}
+    ]
+  },
+  "IFCROOF": {
+    "types": [
+      {"name": "Concrete Roof", "price": 400.00},
+      {"name": "Steel Roof", "price": 450.00},
+      {"name": "Wooden Roof", "price": 500.00},
+      {"name": "Composite Roof", "price": 550.00},
+      {"name": "Precast Roof", "price": 600.00}
+    ]
+  },
+  "IFCSTAIR": {
+    "types": [
+      {"name": "Concrete Stairs", "price": 500.00},
+      {"name": "Steel Stairs", "price": 550.00},
+      {"name": "Wooden Stairs", "price": 600.00},
+      {"name": "Composite Stairs", "price": 650.00},
+      {"name": "Precast Stairs", "price": 700.00}
+    ]
+  },
+  "IFCRAILING": {
+    "types": [
+      {"name": "Metal Railings", "price": 100.25},
+      {"name": "Wooden Railings", "price": 120.00},
+      {"name": "Glass Railings", "price": 140.00},
+      {"name": "Composite Railings", "price": 160.00},
+      {"name": "Vinyl Railings", "price": 180.00}
+    ]
+  },
+  "IFCFURNISHINGELEMENT": {
+    "types": [
+      {"name": "Wooden Furnishings", "price": 80.50},
+      {"name": "Metal Furnishings", "price": 90.00},
+      {"name": "Glass Furnishings", "price": 100.00},
+      {"name": "Plastic Furnishings", "price": 110.00},
+      {"name": "Composite Furnishings", "price": 120.00}
+    ]
+  }
+}

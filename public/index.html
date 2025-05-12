@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IFC Uploader</title>
+  <style>
+    body { font-family: Arial; padding: 2rem; }
+    #output { margin-top: 1rem; white-space: pre; }
+  </style>
+</head>
+<body>
+  <h2>Upload IFC File</h2>
+  <form id="uploadForm">
+    <input type="file" id="ifcFile" name="ifcFile" accept=".ifc" required />
+    <button type="submit">Upload</button>
+  </form>
+  <div id="output"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
