@@ -12,7 +12,14 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
 
   const result = await res.json();
   console.log('result', result);
+  console.log('characters number in the response', JSON.stringify(result.items).length);
+
   displayDataAsTable(result.items);
+  if (result.items.length > 0) {
+    // openChatAssistant()
+    // sendMessage(JSON.stringify(result.items))
+  }
+
   if (result.costReport) {
     displayCostReport(result.costReport);
   }
@@ -143,3 +150,105 @@ function displayCostReport(costReportData) {
 
   outputDiv.appendChild(costDiv);
 }
+
+
+// Function to handle chat messages
+// public/script.js
+const chatbox = document.getElementById('chatbox');
+const userInput = document.getElementById('userInput');
+const sendButton = document.getElementById('sendButton');
+
+const openChatAssistant = () => {
+    const chatModalCollection = document.getElementsByClassName('chat-container');
+    if (chatModalCollection.length > 0) {
+        // Assuming you want to affect the first element with this class
+        chatModalCollection[0].style.display = 'flex';
+    } else {
+        console.warn("Chat modal element with class 'chat-container' not found.");
+    }
+}
+function appendMessage(sender, message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'ai-message');
+    
+    // Basic markdown-like formatting for newlines
+    const formattedMessage = message.replace(/\n/g, '<br>');
+    messageDiv.innerHTML = formattedMessage; // Use innerHTML to render <br> tags
+
+    chatbox.appendChild(messageDiv);
+    chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll to bottom
+}
+
+async function sendMessage(input) {
+    const messageText = input|| userInput.value.trim();
+    if (messageText === '') return;
+
+    appendMessage('user', messageText);
+    userInput.value = ''; // Clear input field
+    userInput.disabled = true;
+    sendButton.disabled = true;
+    appendMessage('ai', 'Thinking...'); // Temporary thinking message
+
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: messageText }),
+        });
+
+        // Remove "Thinking..." message
+        const thinkingMessage = chatbox.lastChild;
+        if (thinkingMessage && thinkingMessage.textContent.includes('Thinking...')) {
+            chatbox.removeChild(thinkingMessage);
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        appendMessage('ai', data.reply);
+
+    } catch (error) {
+        console.error('Error sending message:', error);
+        appendMessage('ai', `Sorry, something went wrong: ${error.message}`);
+        // Remove "Thinking..." message if it's still there on error
+        const thinkingMessage = chatbox.lastChild;
+        if (thinkingMessage && thinkingMessage.previousSibling && thinkingMessage.previousSibling.textContent.includes('Thinking...')) {
+             chatbox.removeChild(thinkingMessage.previousSibling);
+        } else if (thinkingMessage && thinkingMessage.textContent.includes('Thinking...')) {
+            chatbox.removeChild(thinkingMessage);
+        }
+    } finally {
+        userInput.disabled = false;
+        sendButton.disabled = false;
+        userInput.focus();
+    }
+}
+
+sendButton.addEventListener('click', sendMessage);
+userInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// Optional: Load initial chat history if you implement it fully
+// async function loadHistory() {
+//     try {
+//         const response = await fetch('/history');
+//         if (!response.ok) throw new Error('Failed to load history');
+//         const history = await response.json();
+//         history.forEach(msg => appendMessage(msg.sender, msg.text));
+//     } catch (error) {
+//         console.error("Could not load chat history:", error);
+//         // appendMessage('ai', "Welcome! How can I help you today?");
+//     }
+// }
+// window.onload = loadHistory; // Load history when page loads
+
+// Display a welcome message
+appendMessage('ai', "Hello! I'm your assistant. You uploaded an IFC file. And i will process it.");

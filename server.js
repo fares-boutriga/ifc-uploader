@@ -97,7 +97,7 @@ app.post('/upload', upload.single('ifcFile'), async (req, res) => {
                 // Note: NominalLength and NominalWidth might not be direct properties for all elements
                 // You might need to access them through Psets or other related entities.
                 // For simplicity, we'll keep them as is, but be aware they might often be 'N/A'.
-                length: properties.NominalLength?.value || 'N/A',
+                length: properties.NominalLength?.value || properties.OverallLength?.value || 'N/A',
                 width: properties.NominalWidth?.value || 'N/A',
                 color: properties.Color || 'N/A',},
           });

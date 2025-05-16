@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js"
+    "start": "nodemon server.js",
+    "dev": "nodemon server1.js"
   },
   "keywords": [],
   "author": "",
@@ -12,8 +13,10 @@
   "description": "",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "forge-apis": "^0.9.10",
     "multer": "^1.4.5-lts.2",
     "nodemon": "^3.1.10",
     "openai": "^4.98.0",
