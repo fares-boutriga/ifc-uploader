@@ -242,6 +242,84 @@ const updateElementName = (ifcApi, modelID, elementID, newName) => {
   }
 };
 
+/**
+ * Updates the names of multiple IFC elements based on their GlobalIds.
+ *
+ * @param {object} ifcApi The IfcAPI instance.
+ * @param {number} modelID The ID of the IFC model.
+ * @param {Array<object>} updates An array of update objects, where each object
+ *                                 should have `globalId` (string) and `newName` (string).
+ * @returns {object} An object containing the results of the update operations.
+ *                   Example:
+ *                   {
+ *                     summary: {
+ *                       totalAttempted: 2, 
+ *                       successful: 1, 
+ *                       failed: 1
+ *                     },
+ *                     details: [
+ *                       { globalId: "...", newName: "...", status: "success", elementId: 123 },
+ *                       { globalId: "...", newName: "...", status: "failed", reason: "Element not found" }
+ *                     ]
+ *                   }
+ */
+const updateIfcElementNames = (ifcApi, modelID, updates) => {
+  console.log('***************************test update ********************************');
+  if (!ifcApi || typeof modelID !== 'number' || !Array.isArray(updates)) { 
+    console.error("Invalid arguments for updateIfcElementNames: Missing ifcApi, modelID, or updates array.");
+    return {
+      summary: { totalAttempted: updates?.length || 0, successful: 0, failed: updates?.length || 0 },
+      details: (updates || []).map(u => ({
+        globalId: u?.globalId || "N/A",
+        newName: u?.newName || "N/A",
+        status: "failed",
+        reason: "Invalid arguments provided to updateIfcElementNames function."
+      })),
+      error: "Invalid arguments provided to function."
+    };
+  }
+
+  let successfulUpdates = 0;
+  let failedUpdates = 0;
+  const updateDetails = [];
+
+  for (const update of updates) {
+    if (typeof update !== 'object' || update === null || 
+        typeof update.elementId !== 'number' || // Changed from globalId to elementId and type check to number
+        typeof update.newName !== 'string') { // Allow empty newName, or add !update.newName.trim() if required 
+      failedUpdates++;
+      updateDetails.push({
+        elementId: update?.elementId || "N/A", // Changed from globalId to elementId
+        newName: update?.newName || "N/A",
+        status: "failed",
+        reason: "Invalid update object structure, or missing/invalid elementId or newName." // Updated error message
+      });
+      continue;
+    }
+
+    const { elementId, newName } = update; // Changed from globalId to elementId
+
+    if (!elementId || elementId === 0) { // Check if elementId is valid (not 0 or undefined)
+      failedUpdates++;
+      updateDetails.push({ elementId, newName, status: "failed", reason: `Invalid elementId: ${elementId}` }); // Updated error message
+      continue;
+    }
+
+    if (updateElementName(ifcApi, modelID, elementId, newName)) { // Use elementId directly
+      successfulUpdates++;
+      updateDetails.push({ elementId, newName, status: "success" }); // Keep elementId in success detail
+    } else {
+      failedUpdates++;
+      updateDetails.push({ elementId, newName, status: "failed", reason: `Failed to update name for elementID ${elementId}.` }); // Use elementId
+    }
+  }
+
+  return {
+    summary: { totalAttempted: updates.length, successful: successfulUpdates, failed: failedUpdates },
+    details: updateDetails
+  };
+};
+
 exports.getElementLength = getElementLength;
 exports.getLengthFromPset = getLengthFromPset;
 exports.getMaterialForElement = getMaterialForElement;
@@ -249,3 +327,4 @@ exports.getQuantity = getQuantity;
 exports.getLengthForElement = getLengthForElement;
 exports.getColorForElement = getColorForElement;
 exports.updateElementName = updateElementName;
+exports.updateIfcElementNames = updateIfcElementNames;

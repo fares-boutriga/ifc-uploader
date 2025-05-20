@@ -2,18 +2,26 @@
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const WebIFC  = require('web-ifc')
+const WebIFC = require('web-ifc'); // Used for IfcAPI constants and potentially instance
 require('dotenv').config();
 const OpenAI = require('openai');
 const config = require('./ifc_config_exemples.json');
+const { updateIfcElementNames } = require('./utils/extractElements'); // Import the new function
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   organization: process.env.OPENAI_ORG_ID // Add this line
 });
-async function chatWithAssistant(userInput) {
+
+/**
+ * Interacts with the OpenAI assistant.
+ * @param {string} userInput The user's message.
+ * @param {string} [ifcFileName] The filename of the IFC model relevant to this chat session (e.g., "12345.ifc").
+ */
+async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc") {
   try {
     // 1. Create a thread
+    console.log('userInput', userInput);
     const thread = await openai.beta.threads.create();
 
     // 2. Add a message to the thread
@@ -40,8 +48,107 @@ async function chatWithAssistant(userInput) {
         console.error(`Run ended with status: ${runStatus.status}. Error: ${errorMessage}`);
         return `Assistant run ${runStatus.status}. ${errorMessage}`;
       }
-      // Note: If your assistant uses tools that require function calls,
-      // you would also need to handle `runStatus.status === 'requires_action'` here.
+
+      if (runStatus.status === 'requires_action') {
+        console.log("Run requires action. Processing tool calls...");
+        const toolCalls = runStatus.required_action.submit_tool_outputs.tool_calls;
+        const toolOutputs = [];
+
+        for (const toolCall of toolCalls) {
+          const functionName = toolCall.function.name;
+          const functionArgs = JSON.parse(toolCall.function.arguments); // Arguments are a JSON string
+
+          console.log(`Attempting to call function: ${functionName} with args:`, functionArgs);
+          let toolOutputContent;
+
+          if (functionName === "updateIfcElementNames") {
+            if (!ifcFileName) {
+              console.error("IFC file context not available for updateIfcElementNames tool call.");
+              toolOutputContent = JSON.stringify({
+                success: false,
+                message: "Cannot perform IFC update: No IFC file is associated with this session.",
+                details: []
+              });
+            } else {
+              const currentIfcFilePath = path.join(__dirname, 'uploads', ifcFileName); // Assumes files are in 'uploads'
+              const newPath = path.join(__dirname, "uploads", "new_" + ifcFileName);
+              let ifcApiInstance;
+              let modelID;
+
+              if (!fs.existsSync(currentIfcFilePath)) {
+                console.error(`IFC file not found at: ${currentIfcFilePath}`);
+                toolOutputContent = JSON.stringify({
+                  success: false,
+                  message: `IFC file '${ifcFileName}' not found. Cannot perform updates.`,
+                  details: functionArgs.updates.map(u => ({ ...u, status: "failed", reason: "IFC file not found" }))
+                });
+              } else {
+                try {
+                  ifcApiInstance = new WebIFC.IfcAPI();
+                  await ifcApiInstance.Init();
+                  const fileData = fs.readFileSync(currentIfcFilePath);
+                  const ifcModelData = new Uint8Array(fileData);
+                  modelID = ifcApiInstance.OpenModel(ifcModelData);
+
+                  // if (modelID === 0) throw new Error("Failed to open IFC model for updates.");
+
+                  console.log(`Calling actual updateIfcElementNames for modelID ${modelID} on file ${currentIfcFilePath}`);
+                  const results = updateIfcElementNames(ifcApiInstance, modelID, functionArgs.updates);
+
+                  // Save the modified IFC model
+                  const updatedIfcData = ifcApiInstance.SaveModel(modelID);
+                  fs.writeFileSync(newPath, updatedIfcData); // Overwrite the existing file
+                  console.log(`IFC model saved to ${newPath} after updates.`);
+
+                  toolOutputContent = JSON.stringify({
+                    success: results.summary.failed === 0,
+                    message: `IFC elements update process completed. Successful: ${results.summary.successful}, Failed: ${results.summary.failed}. File '${ifcFileName}' has been updated.`,
+                    summary: results.summary,
+                    details: results.details
+                  });
+
+                } catch (error) {
+                  console.error("Error during IFC update operation:", error);
+                  toolOutputContent = JSON.stringify({
+                    success: false,
+                    message: `Error processing IFC update for '${ifcFileName}': ${error.message}`,
+                    details: functionArgs.updates.map(u => ({ ...u, status: "failed", reason: error.message }))
+                  });
+                } finally {
+                  if (ifcApiInstance && modelID) {
+                    ifcApiInstance.CloseModel(modelID);
+                  }
+                  // ifcApiInstance.Dispose(); // If web-ifc has a dispose method
+                }
+              }
+            }
+            toolOutputs.push({
+              tool_call_id: toolCall.id,
+              output: toolOutputContent,
+            });
+          } else {
+            console.warn(`Unknown function call requested: ${functionName}`);
+            toolOutputs.push({
+              tool_call_id: toolCall.id,
+              output: JSON.stringify({ success: false, message: `Function ${functionName} is not implemented.` }),
+            });
+          }
+        }
+
+        // Submit all tool outputs back to the Assistant
+        if (toolOutputs.length > 0) {
+          try {
+            await openai.beta.threads.runs.submitToolOutputs(thread.id, run.id, {
+              tool_outputs: toolOutputs,
+            });
+            console.log("Tool outputs submitted successfully.");
+          } catch (error) {
+            console.error("Error submitting tool outputs:", error);
+            // Decide how to handle this error, e.g., fail the run or try to inform the user
+            return `Error submitting tool outputs to the assistant: ${error.message}`;
+          }
+        }
+      }
 
     } while (runStatus.status !== 'completed');
 

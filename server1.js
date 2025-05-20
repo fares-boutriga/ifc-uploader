@@ -8,6 +8,9 @@ const { chatWithAssistant } = require('./chatGbt');
 
 const app = express();
 
+// Middleware to parse JSON bodies
+app.use(express.json());
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -18,7 +21,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null,'' +  file.fieldname+ path.extname(file.originalname));
   }
 });
 
@@ -112,7 +115,7 @@ app.post('/upload', upload.single('ifcFile'), async (req, res) => {
     // Clean up
     ifcApi.CloseModel(modelID);
     // Delete the uploaded file after processing
-    fs.unlinkSync(req.file.path);
+    // fs.unlinkSync(req.file.path);
     
     res.json({
       message: 'File uploaded and parsed successfully',
@@ -138,14 +141,20 @@ app.get('/', (req, res) => {
 });
 
 app.post('/chat', async (req, res) => {
-  const userInput = req.body.message; // Assuming the client sends a JSON with a 'message' field
-
+    const userInput = req.body.message; // Assuming the client sends a JSON with a 'message' field
+     const filename = req.body.filename; // Assuming the client sends a JSON with a 'filename' field
+  console.log("User input:",  req.body);
+  console.log('wwwwwwwwwwwwwwwwwwwwwwwww')
   if (!userInput) {
     return res.status(400).json({ error: 'No message provided in the request body.' });
   }
 
   try {
-    const assistantResponse = await chatWithAssistant(userInput);
+    const assistantResponse = await chatWithAssistant(userInput, filename);
+    console.log("Assistant response:", assistantResponse);
+    if (!assistantResponse) {
+      return res.status(500).json({ error: 'No response from the assistant.' });
+    }
     res.json({ reply: assistantResponse });
   } catch (error) {
     // This would catch errors if chatWithAssistant itself threw an unhandled one,

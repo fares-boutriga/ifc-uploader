@@ -13,11 +13,12 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   const result = await res.json();
   console.log('result', result);
   console.log('characters number in the response', JSON.stringify(result.items).length);
-
+  const filename = document.getElementById('file-name');
+  filename.textContent ='No file name provided';
   displayDataAsTable(result.items);
   if (result.items.length > 0) {
-    // openChatAssistant()
-    // sendMessage(JSON.stringify(result.items))
+    openChatAssistant()
+    sendMessage(JSON.stringify(result.items), result.filename);
   }
 
   if (result.costReport) {
@@ -179,8 +180,11 @@ function appendMessage(sender, message) {
     chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll to bottom
 }
 
-async function sendMessage(input) {
-    const messageText = input|| userInput.value.trim();
+async function sendMessage(input, filename) {
+  console.log('input', input);
+  console.log('filename', filename);
+    const messageText =userInput.value.trim()|| input; 
+    console.log('messageText', messageText);
     if (messageText === '') return;
 
     appendMessage('user', messageText);
@@ -190,12 +194,13 @@ async function sendMessage(input) {
     appendMessage('ai', 'Thinking...'); // Temporary thinking message
 
     try {
+      alert('Sending message to the assistant...');
         const response = await fetch('/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ message: messageText }),
+            body: JSON.stringify({ message: messageText, filename:filename }),
         });
 
         // Remove "Thinking..." message
