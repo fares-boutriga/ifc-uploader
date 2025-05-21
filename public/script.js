@@ -194,13 +194,23 @@ async function sendMessage(input, filename) {
     appendMessage('ai', 'Thinking...'); // Temporary thinking message
 
     try {
+      let threadId = sessionStorage.getItem('openai_thread_id');
+
+      if (!threadId) {
+        // Create a new thread on first use
+        const response = await fetch('/create-thread', { method: 'POST' });
+        const data = await response.json();
+        threadId = data.threadId;
+        sessionStorage.setItem('openai_thread_id', threadId);
+      }
+
       alert('Sending message to the assistant...');
         const response = await fetch('/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ message: messageText, filename:filename }),
+            body: JSON.stringify({ message: messageText, filename:filename, threadId: threadId }),
         });
 
         // Remove "Thinking..." message

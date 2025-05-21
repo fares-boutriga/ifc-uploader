@@ -3,35 +3,32 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const WebIFC = require('web-ifc'); // Used for IfcAPI constants and potentially instance
-require('dotenv').config();
-const OpenAI = require('openai');
+
 const config = require('./ifc_config_exemples.json');
 const { updateIfcElementNames } = require('./utils/extractElements'); // Import the new function
+const openai = require('./openIaConfig');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORG_ID // Add this line
-});
+
 
 /**
  * Interacts with the OpenAI assistant.
  * @param {string} userInput The user's message.
  * @param {string} [ifcFileName] The filename of the IFC model relevant to this chat session (e.g., "12345.ifc").
  */
-async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc") {
+async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc",threadId) {
   try {
     // 1. Create a thread
     console.log('userInput', userInput);
-    const thread = await openai.beta.threads.create();
+    // const thread = await openai.beta.threads.create();
 
     // 2. Add a message to the thread
-    await openai.beta.threads.messages.create(thread.id, {
+    await openai.beta.threads.messages.create(threadId, {
       role: 'user',
       content: userInput,
     });
 
     // 3. Run the assistant
-    const run = await openai.beta.threads.runs.create(thread.id, {
+    const run = await openai.beta.threads.runs.create(threadId, {
       assistant_id: process.env.ASSISTANT_ID, // use your actual Assistant ID here
     });
 
@@ -41,7 +38,7 @@ async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc") {
 
     do {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // wait 1s
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
 
       if (['failed', 'cancelled', 'expired'].includes(runStatus.status)) {
         const errorMessage = runStatus.last_error ? runStatus.last_error.message : `Run ${runStatus.status}.`;
@@ -138,7 +135,7 @@ async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc") {
         // Submit all tool outputs back to the Assistant
         if (toolOutputs.length > 0) {
           try {
-            await openai.beta.threads.runs.submitToolOutputs(thread.id, run.id, {
+            await openai.beta.threads.runs.submitToolOutputs(threadId, run.id, {
               tool_outputs: toolOutputs,
             });
             console.log("Tool outputs submitted successfully.");
@@ -153,7 +150,7 @@ async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc") {
     } while (runStatus.status !== 'completed');
 
     // 5. Retrieve the messages (ordered by latest first by default)
-    const messages = await openai.beta.threads.messages.list(thread.id, { order: 'desc' });
+    const messages = await openai.beta.threads.messages.list(threadId, { order: 'desc' });
 
     // Find the first assistant message in the list (which will be the latest one)
     const assistantMessage = messages.data.find(

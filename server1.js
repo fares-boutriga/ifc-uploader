@@ -5,6 +5,7 @@ const path = require('path');
 const WebIFC  = require('web-ifc');
 const { getMaterialForElement, getQuantity, getLengthForElement, getColorForElement, getWeightForElement, getElementLength } = require('./utils/extractElements');
 const { chatWithAssistant } = require('./chatGbt');
+const openai = require('./openIaConfig');
 
 const app = express();
 
@@ -139,18 +140,29 @@ app.use(express.static('public'));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+app.post('/create-thread', async (req, res) => {
+  try {
+    const thread = await openai.beta.threads.create();
+    res.json({ threadId: thread.id });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create thread' });
+  }
+});
+const threadContextMap = {}; // In memory for now
 
 app.post('/chat', async (req, res) => {
-    const userInput = req.body.message; // Assuming the client sends a JSON with a 'message' field
-     const filename = req.body.filename; // Assuming the client sends a JSON with a 'filename' field
-  console.log("User input:",  req.body);
-  console.log('wwwwwwwwwwwwwwwwwwwwwwwww')
-  if (!userInput) {
+  const { message, filename, threadId } = req.body;
+    
+  if (!message) {
     return res.status(400).json({ error: 'No message provided in the request body.' });
   }
-
+  if (filename) {
+    threadContextMap[threadId] = filename;
+  }
   try {
-    const assistantResponse = await chatWithAssistant(userInput, filename);
+      const currentFile = threadContextMap[threadId];
+
+    const assistantResponse = await chatWithAssistant(message, currentFile, threadId);
     console.log("Assistant response:", assistantResponse);
     if (!assistantResponse) {
       return res.status(500).json({ error: 'No response from the assistant.' });
