@@ -14,7 +14,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   console.log('result', result);
   console.log('characters number in the response', JSON.stringify(result.items).length);
   const filename = document.getElementById('file-name');
-  filename.textContent ='No file name provided';
+  filename.textContent = result.originalname || 'No file name provided';
   displayDataAsTable(result.items);
   if (result.items.length > 0) {
     openChatAssistant()

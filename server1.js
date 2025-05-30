@@ -3,12 +3,15 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const WebIFC  = require('web-ifc');
+const { v4: uuidv4 } = require('uuid');
 const { getMaterialForElement, getQuantity, getLengthForElement, getColorForElement, getWeightForElement, getElementLength } = require('./utils/extractElements');
 const { chatWithAssistant } = require('./chatGbt');
 const openai = require('./openIaConfig');
+const bodyParser = require('body-parser');
 
 const app = express();
-
+app.use(bodyParser.json({ limit: '100mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '100mb' }));
 // Middleware to parse JSON bodies
 app.use(express.json());
 
@@ -22,7 +25,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null,'' +  file.fieldname+ path.extname(file.originalname));
+    cb(null, uuidv4() + '-' +  file.fieldname+ path.extname(file.originalname));
   }
 });
 
@@ -39,7 +42,7 @@ app.post('/upload', upload.single('ifcFile'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
-
+  console.log("File uploaded:", req.file);
   try {
         // Initialize the IFC loader
         const ifcApi = new WebIFC.IfcAPI({ CORES: 2 });
@@ -83,7 +86,7 @@ app.post('/upload', upload.single('ifcFile'), async (req, res) => {
         for (let i = 0; i < elementIDs.size(); i++) {
           const elementID = elementIDs.get(i);
           const properties = ifcApi.GetLine(modelID, elementID);
-          console.log("Properties:", properties);
+          // console.log("Properties:", properties);
           const width = properties.NominalWidth?.value || properties.OverallWidth?.value || 'N/A';
           const height = properties.NominalHeight?.value || properties.OverallHeight?.value || 'N/A';
           const length = await getElementLength(ifcApi, modelID, elementID, ifcConstantTypeKey);
@@ -120,7 +123,8 @@ app.post('/upload', upload.single('ifcFile'), async (req, res) => {
     
     res.json({
       message: 'File uploaded and parsed successfully',
-      filename: req.file.originalname,
+      originalname: req.file.originalname,
+      filename: req.file.filename,
       items: extractedItems,
       costReport: {
         breakdown: costBreakdown,
@@ -152,7 +156,6 @@ const threadContextMap = {}; // In memory for now
 
 app.post('/chat', async (req, res) => {
   const { message, filename, threadId } = req.body;
-    
   if (!message) {
     return res.status(400).json({ error: 'No message provided in the request body.' });
   }
@@ -161,7 +164,7 @@ app.post('/chat', async (req, res) => {
   }
   try {
       const currentFile = threadContextMap[threadId];
-
+      console.log("Current file for thread:", currentFile);
     const assistantResponse = await chatWithAssistant(message, currentFile, threadId);
     console.log("Assistant response:", assistantResponse);
     if (!assistantResponse) {

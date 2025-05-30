@@ -4,9 +4,9 @@ const fs = require("fs");
 const path = require("path");
 const WebIFC = require("web-ifc"); // Used for IfcAPI constants and potentially instance
 require("dotenv").config();
-const { updateIfcElementNames } = require("./utils/extractElements"); // Import the new function
+const { updateIfcElement } = require("./utils/extractElements"); // Import the new function
 
-const test = async (ifcFileName="ifcFile.ifc") => {
+const test = async (ifcFileName="07-08-2 IFC CONSTRUCTION BOIS.ifc") => {
   try {
     const currentIfcFilePath = path.join(__dirname, "uploads", ifcFileName); // Assumes files are in 'uploads'
     const newPath = path.join(__dirname, "uploads", "new_" + ifcFileName);
@@ -22,17 +22,17 @@ const test = async (ifcFileName="ifcFile.ifc") => {
     // if (modelID === 0) throw new Error("Failed to open IFC model for updates.");
 
     console.log(
-      `Calling actual updateIfcElementNames for modelID ${modelID} on file ${currentIfcFilePath}`
+      `Calling actual updateIfcElement for modelID ${modelID} on file ${currentIfcFilePath}`
     );
      const updates= [
-    { elementId: 20374, newName: 'xxxxxxxxxxx' }
+    { elementId: 332881, newName: 'test name',materiau: 'Béton', code_CFC: 'far958965es' }
   ]
-    const results = updateIfcElementNames(
+    const results = updateIfcElement(
       ifcApiInstance,
       modelID,
       updates
     );
-
+    console.log("results", results);
     // Save the modified IFC model
     const updatedIfcData = ifcApiInstance.SaveModel(modelID);
     fs.writeFileSync(newPath, updatedIfcData); // Overwrite the existing file

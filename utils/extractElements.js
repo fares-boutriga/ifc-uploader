@@ -23,7 +23,7 @@ const getMaterialForElement = (ifcApi, modelID, elementID) => {
           const firstLayer = ifcApi.GetLine(modelID, layers[0].value);
           if (firstLayer && firstLayer.Material) {
             const material = ifcApi.GetLine(modelID, firstLayer.Material.value);
-            if (material?.Name?.value) return material.Name.value;
+            if (material?.Name?.value) return material.Name.value +"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
           }
         }
       }
@@ -243,37 +243,27 @@ const updateElementName = (ifcApi, modelID, elementID, newName) => {
 };
 
 /**
- * Updates the names of multiple IFC elements based on their GlobalIds.
+ * Updates the name, material, and CFC code of multiple IFC elements.
  *
  * @param {object} ifcApi The IfcAPI instance.
  * @param {number} modelID The ID of the IFC model.
- * @param {Array<object>} updates An array of update objects, where each object
- *                                 should have `globalId` (string) and `newName` (string).
- * @returns {object} An object containing the results of the update operations.
- *                   Example:
- *                   {
- *                     summary: {
- *                       totalAttempted: 2, 
- *                       successful: 1, 
- *                       failed: 1
- *                     },
- *                     details: [
- *                       { globalId: "...", newName: "...", status: "success", elementId: 123 },
- *                       { globalId: "...", newName: "...", status: "failed", reason: "Element not found" }
- *                     ]
- *                   }
+ * @param {Array<object>} updates An array of update objects, each with:
+ *   - elementId (number)
+ *   - newName (string, optional)
+ *   - materiau (string, optional)
+ *   - code_CFC (string, optional)
+ * @returns {object} Summary and details of the update operations.
  */
-const updateIfcElementNames = (ifcApi, modelID, updates) => {
+const updateIfcElement = (ifcApi, modelID, updates) => {
   console.log('***************************test update ********************************');
-  if (!ifcApi || typeof modelID !== 'number' || !Array.isArray(updates)) { 
-    console.error("Invalid arguments for updateIfcElementNames: Missing ifcApi, modelID, or updates array.");
+  console.log('updates', updates);
+  if (!ifcApi || typeof modelID !== 'number' || !Array.isArray(updates)) {
     return {
       summary: { totalAttempted: updates?.length || 0, successful: 0, failed: updates?.length || 0 },
       details: (updates || []).map(u => ({
-        globalId: u?.globalId || "N/A",
-        newName: u?.newName || "N/A",
+        elementId: u?.elementId || "N/A",
         status: "failed",
-        reason: "Invalid arguments provided to updateIfcElementNames function."
+        reason: "Invalid arguments provided to updateIfcElement function."
       })),
       error: "Invalid arguments provided to function."
     };
@@ -284,33 +274,119 @@ const updateIfcElementNames = (ifcApi, modelID, updates) => {
   const updateDetails = [];
 
   for (const update of updates) {
-    if (typeof update !== 'object' || update === null || 
-        typeof update.elementId !== 'number' || // Changed from globalId to elementId and type check to number
-        typeof update.newName !== 'string') { // Allow empty newName, or add !update.newName.trim() if required 
+    if (
+      typeof update !== 'object' ||
+      update === null ||
+      typeof update.elementId !== 'number'
+    ) {
       failedUpdates++;
       updateDetails.push({
-        elementId: update?.elementId || "N/A", // Changed from globalId to elementId
-        newName: update?.newName || "N/A",
+        elementId: update?.elementId || "N/A",
         status: "failed",
-        reason: "Invalid update object structure, or missing/invalid elementId or newName." // Updated error message
+        reason: "Invalid update object structure or missing/invalid elementId."
       });
       continue;
     }
 
-    const { elementId, newName } = update; // Changed from globalId to elementId
+    const { elementId, newName, materiau, code_CFC } = update;
+    let elementUpdated = false;
+    let errors = [];
 
-    if (!elementId || elementId === 0) { // Check if elementId is valid (not 0 or undefined)
-      failedUpdates++;
-      updateDetails.push({ elementId, newName, status: "failed", reason: `Invalid elementId: ${elementId}` }); // Updated error message
-      continue;
+    // --- Update Name ---
+    try {
+      if (typeof newName === 'string') {
+        const elementProperties = ifcApi.GetLine(modelID, elementId);
+        if (elementProperties) {
+          if (elementProperties.Name && typeof elementProperties.Name === 'object' && 'value' in elementProperties.Name) {
+            elementProperties.Name.value = newName;
+          } else {
+            elementProperties.Name = { type: 5, value: newName };
+          }
+          ifcApi.WriteLine(modelID, elementProperties);
+          elementUpdated = true;
+        } else {
+          errors.push("Element not found for name update.");
+        }
+      }
+    } catch (err) {
+      errors.push("Name update error: " + err.message);
     }
 
-    if (updateElementName(ifcApi, modelID, elementId, newName)) { // Use elementId directly
+    // --- Update Material ---
+    try {
+      if (typeof materiau === 'string') {
+        const materialRelTypes = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCRELASSOCIATESMATERIAL);
+        let foundMaterial = false;
+        for (let i = 0; i < materialRelTypes.size(); i++) {
+          const relID = materialRelTypes.get(i);
+          const rel = ifcApi.GetLine(modelID, relID);
+          const relatedObjects = rel.RelatedObjects || [];
+          const relatedObjectIDs = relatedObjects.map(obj => obj.value);
+          if (relatedObjectIDs.includes(elementId) && rel.RelatingMaterial) {
+            const mat = ifcApi.GetLine(modelID, rel.RelatingMaterial.value);
+            if (mat && mat.Name && typeof mat.Name === 'object' && 'value' in mat.Name) {
+              mat.Name.value = materiau;
+              ifcApi.WriteLine(modelID, mat);
+              elementUpdated = true;
+              foundMaterial = true;
+            }
+          }
+        }
+        if (!foundMaterial) errors.push("No related material found to update.");
+      }
+    } catch (err) {
+      errors.push("Material update error: " + err.message);
+    }
+
+    // --- Update CFC/Classification Code ---
+    try {
+      if (typeof code_CFC === 'string') {
+        const relAssocClassIDs = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCRELASSOCIATESCLASSIFICATION);
+        let foundCFC = false;
+        for (let i = 0; i < relAssocClassIDs.size(); i++) {
+          const relID = relAssocClassIDs.get(i);
+          const rel = ifcApi.GetLine(modelID, relID);
+          const relatedObjects = rel.RelatedObjects || [];
+          if (relatedObjects.some(obj => obj.value === elementId) && rel.RelatingClassification?.value) {
+            const classificationRefID = rel.RelatingClassification.value;
+            const classificationEntity = ifcApi.GetLine(modelID, classificationRefID);
+            if (classificationEntity && classificationEntity.type === WebIFC.IFCCLASSIFICATIONREFERENCE) {
+              if (classificationEntity.ItemReference && typeof classificationEntity.ItemReference === 'object' && 'value' in classificationEntity.ItemReference) {
+                classificationEntity.ItemReference.value = code_CFC;
+              } else {
+                classificationEntity.ItemReference = { type: 5, value: code_CFC };
+              }
+              ifcApi.WriteLine(modelID, classificationEntity);
+              elementUpdated = true;
+              foundCFC = true;
+            }
+          }
+        }
+        if (!foundCFC) errors.push("No related CFC/classification found to update.");
+      }
+    } catch (err) {
+      errors.push("CFC update error: " + err.message);
+    }
+
+    if (elementUpdated) {
       successfulUpdates++;
-      updateDetails.push({ elementId, newName, status: "success" }); // Keep elementId in success detail
+      updateDetails.push({
+        elementId,
+        newName,
+        materiau,
+        code_CFC,
+        status: "success"
+      });
     } else {
       failedUpdates++;
-      updateDetails.push({ elementId, newName, status: "failed", reason: `Failed to update name for elementID ${elementId}.` }); // Use elementId
+      updateDetails.push({
+        elementId,
+        newName,
+        materiau,
+        code_CFC,
+        status: "failed",
+        reason: errors.length ? errors.join("; ") : "No updates applied."
+      });
     }
   }
 
@@ -320,6 +396,89 @@ const updateIfcElementNames = (ifcApi, modelID, updates) => {
   };
 };
 
+/**
+ * Extracts classification information for a given IFC element.
+ * @param {object} ifcApi The IfcAPI instance.
+ * @param {number} modelID The ID of the IFC model.
+ * @param {number} elementID The expressID of the element.
+ * @returns {Array<object>} An array of classification objects, or an empty array if none found.
+ *                          Each object may contain: system, code, title, location, source, edition, description.
+ */
+const getElementClassifications = (ifcApi, modelID, elementID) => {
+  const classifications = [];
+  const relAssocClassIDs = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCRELASSOCIATESCLASSIFICATION);
+
+  for (let i = 0; i < relAssocClassIDs.size(); i++) {
+    const relID = relAssocClassIDs.get(i);
+    const rel = ifcApi.GetLine(modelID, relID);
+
+    // Check if this association is for the current element
+    const relatedObjects = rel.RelatedObjects || [];
+    let isRelated = false;
+    for (const objProxy of relatedObjects) {
+      if (objProxy.value === elementID) {
+        isRelated = true;
+        break;
+      }
+    }
+
+    if (isRelated && rel.RelatingClassification?.value) {
+      const classificationRefID = rel.RelatingClassification.value;
+      const classificationEntity = ifcApi.GetLine(modelID, classificationRefID);
+
+      if (!classificationEntity) {
+        console.warn(`Classification entity with ID ${classificationRefID} not found for element ${elementID}.`);
+        continue;
+      }
+
+      const classificationData = {
+        system: null,
+        code: null,
+        title: null,
+        location: null,
+        source: null,
+        edition: null,
+        description: null,
+      };
+
+      if (classificationEntity.type === WebIFC.IFCCLASSIFICATIONREFERENCE) {
+        classificationData.code = classificationEntity.ItemReference?.value || null;
+        classificationData.title = classificationEntity.Name?.value || null;
+        classificationData.location = classificationEntity.Location?.value || null;
+        classificationData.description = classificationEntity.Description?.value || null;
+
+        if (classificationEntity.ReferencedSource?.value) {
+          const referencedSourceEntity = ifcApi.GetLine(modelID, classificationEntity.ReferencedSource.value);
+          if (referencedSourceEntity && referencedSourceEntity.type === WebIFC.IFCCLASSIFICATION) {
+            classificationData.system = referencedSourceEntity.Name?.value || null;
+            classificationData.source = referencedSourceEntity.Source?.value || null;
+            classificationData.edition = referencedSourceEntity.Edition?.value || null;
+            if (!classificationData.location) {
+                classificationData.location = referencedSourceEntity.Location?.value || null;
+            }
+            if (!classificationData.description && referencedSourceEntity.Description?.value) {
+                classificationData.description = referencedSourceEntity.Description.value;
+            }
+          } else if (referencedSourceEntity && referencedSourceEntity.type === WebIFC.IFCCLASSIFICATIONREFERENCE) {
+            classificationData.system = referencedSourceEntity.Name?.value || classificationData.system; // Fallback
+          }
+        }
+      } else if (classificationEntity.type === WebIFC.IFCCLASSIFICATION) {
+        classificationData.system = classificationEntity.Name?.value || null;
+        classificationData.source = classificationEntity.Source?.value || null;
+        classificationData.edition = classificationEntity.Edition?.value || null;
+        classificationData.location = classificationEntity.Location?.value || null;
+        classificationData.description = classificationEntity.Description?.value || null;
+      }
+
+      if (classificationData.system || classificationData.code || classificationData.title) {
+        classifications.push(classificationData);
+      }
+    }
+  }
+  return classifications;
+};
+
 exports.getElementLength = getElementLength;
 exports.getLengthFromPset = getLengthFromPset;
 exports.getMaterialForElement = getMaterialForElement;
@@ -327,4 +486,5 @@ exports.getQuantity = getQuantity;
 exports.getLengthForElement = getLengthForElement;
 exports.getColorForElement = getColorForElement;
 exports.updateElementName = updateElementName;
-exports.updateIfcElementNames = updateIfcElementNames;
+exports.updateIfcElement = updateIfcElement;
+exports.getElementClassifications = getElementClassifications;

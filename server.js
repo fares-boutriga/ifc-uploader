@@ -88,7 +88,8 @@ app.post('/upload', upload.single('ifcFile'), async (req, res) => {
           const properties = ifcApi.GetLine(modelID, elementID);
           console.log("Properties:", properties);
           extractedItems.push({
-            type: properties.type || '',
+            // type: properties.type || '',
+            elementID: elementID,
             globalId: properties.GlobalId?.value || 'N/A',
             name: properties.Name?.value || `Unnamed ${type}`,
             properties: {

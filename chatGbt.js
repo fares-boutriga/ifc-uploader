@@ -5,7 +5,7 @@ const path = require('path');
 const WebIFC = require('web-ifc'); // Used for IfcAPI constants and potentially instance
 
 const config = require('./ifc_config_exemples.json');
-const { updateIfcElementNames } = require('./utils/extractElements'); // Import the new function
+const { updateIfcElement } = require('./utils/extractElements'); // Import the new function
 const openai = require('./openIaConfig');
 
 
@@ -15,7 +15,7 @@ const openai = require('./openIaConfig');
  * @param {string} userInput The user's message.
  * @param {string} [ifcFileName] The filename of the IFC model relevant to this chat session (e.g., "12345.ifc").
  */
-async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc",threadId) {
+async function chatWithAssistant(userInput, ifcFileName,threadId) {
   try {
     // 1. Create a thread
     console.log('userInput', userInput);
@@ -58,9 +58,9 @@ async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc",threadId)
           console.log(`Attempting to call function: ${functionName} with args:`, functionArgs);
           let toolOutputContent;
 
-          if (functionName === "updateIfcElementNames") {
+          if (functionName === "updateIfcElement") {
             if (!ifcFileName) {
-              console.error("IFC file context not available for updateIfcElementNames tool call.");
+              console.error("IFC file context not available for updateIfcElement tool call.");
               toolOutputContent = JSON.stringify({
                 success: false,
                 message: "Cannot perform IFC update: No IFC file is associated with this session.",
@@ -89,8 +89,8 @@ async function chatWithAssistant(userInput, ifcFileName= "ifcFile.ifc",threadId)
 
                   // if (modelID === 0) throw new Error("Failed to open IFC model for updates.");
 
-                  console.log(`Calling actual updateIfcElementNames for modelID ${modelID} on file ${currentIfcFilePath}`);
-                  const results = updateIfcElementNames(ifcApiInstance, modelID, functionArgs.updates);
+                  console.log(`Calling actual updateIfcElement for modelID ${modelID} on file ${currentIfcFilePath}`);
+                  const results = updateIfcElement(ifcApiInstance, modelID, functionArgs.updates);
 
                   // Save the modified IFC model
                   const updatedIfcData = ifcApiInstance.SaveModel(modelID);

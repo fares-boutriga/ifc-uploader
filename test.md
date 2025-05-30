@@ -43,4 +43,12 @@
 
 Veuillez confirmer quels noms vous souhaitez appliquer. Si certains noms ont plusieurs options, je vous demanderai de choisir votre préférence.
 
-Une fois que vous m'aurez donné votre approbation, j'utiliserai la fonction `updateIfcElementNames` pour mettre à jour les noms dans la structure JSON.
+Une fois que vous m'aurez donné votre approbation, j'utiliserai la fonction `updateIfcElement` pour mettre à jour les noms dans la structure JSON.
+
+
+
+# ERRORS
+Run ended with status: failed. Error: Rate limit reached for gpt-4o-mini in organization org-OnDltOrwpoLdmdt8MgjxXQPg on tokens per min (TPM): Limit 200000, Used 153268, Requested 49174. Please try again in 732ms. Visit https://platform.openai.com/account/rate-limits to learn more.
+
+# ASSIST
+Assistant response: Assistant run failed. Rate limit reached for gpt-4o-mini in organization org-OnDltOrwpoLdmdt8MgjxXQPg on tokens per min (TPM): Limit 200000, Used 153268, Requested 49174. Please try again in 732ms. Visit https://platform.openai.com/account/rate-limits to learn more.
